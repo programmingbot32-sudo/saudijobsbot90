@@ -5,3 +5,4 @@ cryptography
 telegram
 arabic-reshaper
 python-bidi
+reportlab
