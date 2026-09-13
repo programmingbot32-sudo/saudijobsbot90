@@ -11,7 +11,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-MODEL = "llama-3.1-8b-instant"
+MODEL = "openai/gpt-oss-120b"
 
 
 def get_groq_client():
