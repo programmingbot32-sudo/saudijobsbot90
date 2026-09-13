@@ -14,10 +14,12 @@ from config.settings import States
 from database.db import get_user, get_jobs_page, update_user_field
 from keyboards.keyboards import (
     get_ai_cv_collect_keyboard,
+    get_cv_design_selection_keyboard,
     get_ai_job_more_keyboard,
     get_ai_job_search_keyboard,
 )
 from utils.ai_helper import ai_generate_professional_cv
+from utils.pdf_generator import generate_pdf_cv
 from utils.matching import score_match
 
 
@@ -31,14 +33,15 @@ async def start_ai_cv_builder(update: Update, context: ContextTypes.DEFAULT_TYPE
     """بدء جلسة جمع مواد السيرة الذاتية."""
     context.user_data["state"] = States.AI_CV_COLLECT
     context.user_data["ai_cv_items"] = []
+    context.user_data["cv_design_id"] = 1
     message = (
-        "🤖 *إنشاء السيرة الذاتية بالذكاء الاصطناعي*\n\n"
-        "📎 أرسل سيرتك الذاتية القديمة إن وجدت (PDF أو Word)\n"
-        "أو أرسل شهاداتك ودوراتك وخبراتك كصور أو نصوص\n"
-        "وسأصمم لك سيرة احترافية 🚀\n\n"
-        "يمكنك إرسال أكثر من ملف أو رسالة.\n"
-        "بعد استقبال معلوماتك اضغط *انتهيت* أو اكتب: انتهيت\n\n"
-        "❌ للإلغاء اكتب: الغاء"
+        "🤖 *إنشاء السيرة الذاتية الاحترافية PDF*\n\n"
+        "📋 *طريقة العمل:*\n"
+        "1️⃣ أرسل سيرتك الذاتية القديمة إن وجدت (PDF أو Word).\n"
+        "2️⃣ أو اكتب بياناتك وخبراتك ومؤهلاتك في رسائل نصية.\n"
+        "3️⃣ اختر تصميم PDF المناسب لك من بين 3 تصاميم احترافية.\n\n"
+        "💡 _ملاحظة: البوت يعتمد التنسيق المهني الأكاديمي والعملي، ولا يستلزم رفع صورة شخصية._\n\n"
+        "بعد إرسال معلوماتك اضغط *اختيار تصميم PDF* أو *انتهيت*."
     )
     if update.callback_query:
         await update.callback_query.answer()
@@ -157,6 +160,41 @@ async def _collect_file_context(bot, items: List[Dict]) -> str:
     return "\n\n".join(parts)
 
 
+async def show_cv_design_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض خيارات تصاميم PDF الثلاثة للمستخدم."""
+    target = update.message or update.callback_query.message
+    if update.callback_query:
+        await update.callback_query.answer()
+    selected_design = context.user_data.get("cv_design_id", 1)
+    msg = (
+        "🎨 *اختر تصميم السيرة الذاتية (PDF):*\n\n"
+        "1️⃣ *كلاسيكي عصري (Modern Classic)*\n"
+        "   - هيدر كحلي مميز، خطوط واضحة، مناسب لجميع التخصصات.\n\n"
+        "2️⃣ *إبداعي بعمودين (Creative Two-Column)*\n"
+        "   - جانب كحلي للمعلومات والمهارات + قسم عريض للخبرات.\n\n"
+        "3️⃣ *تنفيذي أنيق (Executive Elegant)*\n"
+        "   - شريط علوي تنفيذي بالرمادي الداكن والعناوين الذهبية."
+    )
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            msg, parse_mode=ParseMode.MARKDOWN,
+            reply_markup=get_cv_design_selection_keyboard(selected_design)
+        )
+    else:
+        await target.reply_text(
+            msg, parse_mode=ParseMode.MARKDOWN,
+            reply_markup=get_cv_design_selection_keyboard(selected_design)
+        )
+
+
+async def set_cv_design(update: Update, context: ContextTypes.DEFAULT_TYPE, design_id: int):
+    """تحديد التصميم المختار."""
+    context.user_data["cv_design_id"] = design_id
+    if update.callback_query:
+        await update.callback_query.answer(f"تم اختيار التصميم {design_id}")
+    await show_cv_design_options(update, context)
+
+
 async def finish_ai_cv(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = update.message or update.callback_query.message
     if update.callback_query:
@@ -164,31 +202,37 @@ async def finish_ai_cv(update: Update, context: ContextTypes.DEFAULT_TYPE):
     items = context.user_data.get("ai_cv_items", [])
     if not items:
         await target.reply_text(
-            "📎 أرسل ملفاً أو اكتب معلوماتك أولاً، ثم اضغط «انتهيت».",
+            "📎 أرسل ملف السيرة القديمة أو اكتب معلوماتك أولاً، ثم اضغط «انتهيت».",
             reply_markup=get_ai_cv_collect_keyboard(),
         )
         return
+    design_id = context.user_data.get("cv_design_id", 1)
     context.user_data["state"] = States.MAIN_MENU
-    await target.reply_text("⏳ جاري ترتيب معلوماتك وتصميم السيرة...")
+    await target.reply_text("⏳ جاري ترتيب معلوماتك وتصميم السيرة الذاتية PDF احترافياً...")
+
     text_parts = [item["value"] for item in items if item["kind"] == "text"]
     file_text = await _collect_file_context(context.bot, items)
     source = "\n\n".join(text_parts + ([file_text] if file_text else []))
     user = get_user(update.effective_user.id) or {}
+
     cv_text = ai_generate_professional_cv(user, source)
+    pdf_bytes = generate_pdf_cv(user, cv_text, design_id=design_id)
+
+    design_names = {1: "الكلاسيكي العصري", 2: "الإبداعي بعمودين", 3: "التنفيذي الأنيق"}
+    selected_name = design_names.get(design_id, "الاحترافي")
+
     update_user_field(update.effective_user.id, "ai_cv_text", cv_text)
-    update_user_field(update.effective_user.id, "ai_cv_filename", "saudi-ai-cv.txt")
-    await target.reply_text(
-        "✅ *تم إنشاء سيرتك الذاتية بالذكاء الاصطناعي!*\n\n"
-        "راجِع النص المرفق، ويمكنك إرسال تعديلاتك وسأعيد تنسيقه.",
-        parse_mode=ParseMode.MARKDOWN,
-    )
-    document = io.BytesIO(cv_text.encode("utf-8"))
-    document.name = "saudi-ai-cv.txt"
+    update_user_field(update.effective_user.id, "ai_cv_filename", f"saudi-cv-design{design_id}.pdf")
+
+    pdf_stream = io.BytesIO(pdf_bytes)
+    pdf_stream.name = f"CV_Professional_Design_{design_id}.pdf"
+
     sent_document = await target.reply_document(
-        document=document,
-        caption="📄 سيرتك الذاتية المصممة بـ AI",
+        document=pdf_stream,
+        caption=f"📄 *تم إنشاء سيرتك الذاتية PDF بنجاح!*\nالتصميم: *{selected_name}* 🚀",
+        parse_mode=ParseMode.MARKDOWN
     )
-    # حفظ نسخة تيليجرام لتصبح السيرة الناتجة متاحة للتقديم التلقائي أيضاً.
+
     if sent_document and sent_document.document:
         update_user_field(
             update.effective_user.id,
@@ -198,7 +242,7 @@ async def finish_ai_cv(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update_user_field(
             update.effective_user.id,
             "cv_filename",
-            "saudi-ai-cv.txt",
+            f"CV_Professional_Design_{design_id}.pdf",
         )
 
 

@@ -245,8 +245,22 @@ def get_subscription_menu_keyboard():
 
 def get_ai_cv_collect_keyboard():
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎨 اختيار تصميم PDF للسيرة الذاتية", callback_data="ai_cv_select_design")],
         [InlineKeyboardButton("✅ انتهيت — صمم سيرتي", callback_data="ai_cv_done")],
         [InlineKeyboardButton("❌ إلغاء", callback_data="ai_cv_cancel")],
+    ])
+
+
+def get_cv_design_selection_keyboard(selected_design: int = 1):
+    d1 = "✨ كلاسيكي عصري" + (" (محدد)" if selected_design == 1 else "")
+    d2 = "🎨 إبداعي بعمودين" + (" (محدد)" if selected_design == 2 else "")
+    d3 = "👔 تنفيذي أنيق" + (" (محدد)" if selected_design == 3 else "")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(d1, callback_data="set_cv_design_1")],
+        [InlineKeyboardButton(d2, callback_data="set_cv_design_2")],
+        [InlineKeyboardButton(d3, callback_data="set_cv_design_3")],
+        [InlineKeyboardButton("🚀 إنشاء السيرة الذاتية الآن", callback_data="ai_cv_done")],
+        [InlineKeyboardButton("↩️ إرسال المزيد من البيانات", callback_data="ai_cv_continue_collect")],
     ])
 
 
