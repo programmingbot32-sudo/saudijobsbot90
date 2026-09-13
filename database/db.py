@@ -261,14 +261,14 @@ def init_db():
         VALUES (?, ?, ?, ?)
     """, services)
     plans = [
-        ("free", "الخطة المجانية", "ابدأ باكتشاف الوظائف المناسبة", 0, 0, 3, 1, 0,
-         json.dumps(["تنبيهات الوظائف"], ensure_ascii=False)),
-        ("starter", "باقة البداية", "مناسبة للباحثين عن فرصة جديدة", 49, 30, 50, 10, 50,
-         json.dumps(["50 نقطة", "10 تقديمات تلقائية", "50 شركة"], ensure_ascii=False)),
+        ("free", "الخطة المجانية", "ابدأ باكتشاف الوظائف المناسبة", 0, 0, 1, 1, 0,
+         json.dumps(["تنبيهات الوظائف اليومية"], ensure_ascii=False)),
+        ("starter", "باقة البداية", "مناسبة للباحثين عن فرصة جديدة", 49, 30, 600, 100, 500,
+         json.dumps(["تنبيهات الوظائف اليومية", "تقديم تلقائي وإيميلات HR"], ensure_ascii=False)),
         ("professional", "باقة 100 ريال", "2000 تقديم مباشر على قائمة إيميلات HR + 300 تقديم مباشر على الفرص اليومية", 100, 30, 2300, 300, 2000,
-         json.dumps(["2000 تقديم مباشر على إيميلات HR", "300 تقديم مباشر على الفرص اليومية", "بحث وظائف بالذكاء الاصطناعي"], ensure_ascii=False)),
-        ("premium", "الباقة المميزة", "أقصى وصول وأولوية في التقديم", 199, 30, 241, 80, 800,
-         json.dumps(["241 نقطة", "80 تقديمًا تلقائيًا", "800 شركة"], ensure_ascii=False)),
+         json.dumps(["تقديم مباشر على إيميلات HR", "تقديم مباشر على الفرص اليومية", "بحث وظائف بالذكاء الاصطناعي"], ensure_ascii=False)),
+        ("premium", "الباقة المميزة", "أقصى وصول وأولوية في التقديم", 199, 30, 880, 80, 800,
+         json.dumps(["تقديم تلقائي وإيميلات HR", "أولوية في التقديم والدعم"], ensure_ascii=False)),
     ]
     cursor.executemany("""
         INSERT OR IGNORE INTO plans
@@ -276,22 +276,52 @@ def init_db():
          applications_limit, companies_limit, features_json)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, plans)
-    # تحديث وصف ومزايا الباقة عند ترقية نسخة قديمة من قاعدة البيانات.
+    # تحديث بيانات الباقات لضمان تطابق النقاط مع التقديمات وتحديث المزايا
     cursor.execute("""
         UPDATE plans
         SET name = ?, description = ?, price = ?, billing_period_days = ?,
             points = ?, applications_limit = ?, companies_limit = ?,
             features_json = ?
-        WHERE code = 'professional' AND price = 99
+        WHERE code = 'free'
+    """, (
+        "الخطة المجانية", "ابدأ باكتشاف الوظائف المناسبة", 0, 0, 1, 1, 0,
+        json.dumps(["تنبيهات الوظائف اليومية"], ensure_ascii=False),
+    ))
+    cursor.execute("""
+        UPDATE plans
+        SET name = ?, description = ?, price = ?, billing_period_days = ?,
+            points = ?, applications_limit = ?, companies_limit = ?,
+            features_json = ?
+        WHERE code = 'starter'
+    """, (
+        "باقة البداية", "مناسبة للباحثين عن فرصة جديدة", 49, 30, 600, 100, 500,
+        json.dumps(["تنبيهات الوظائف اليومية", "تقديم تلقائي وإيميلات HR"], ensure_ascii=False),
+    ))
+    cursor.execute("""
+        UPDATE plans
+        SET name = ?, description = ?, price = ?, billing_period_days = ?,
+            points = ?, applications_limit = ?, companies_limit = ?,
+            features_json = ?
+        WHERE code = 'professional'
     """, (
         "باقة 100 ريال",
         "2000 تقديم مباشر على قائمة إيميلات HR + 300 تقديم مباشر على الفرص اليومية",
         100, 30, 2300, 300, 2000,
         json.dumps([
-            "2000 تقديم مباشر على إيميلات HR",
-            "300 تقديم مباشر على الفرص اليومية",
+            "تقديم مباشر على إيميلات HR",
+            "تقديم مباشر على الفرص اليومية",
             "بحث وظائف بالذكاء الاصطناعي",
         ], ensure_ascii=False),
+    ))
+    cursor.execute("""
+        UPDATE plans
+        SET name = ?, description = ?, price = ?, billing_period_days = ?,
+            points = ?, applications_limit = ?, companies_limit = ?,
+            features_json = ?
+        WHERE code = 'premium'
+    """, (
+        "الباقة المميزة", "أقصى وصول وأولوية في التقديم", 199, 30, 880, 80, 800,
+        json.dumps(["تقديم تلقائي وإيميلات HR", "أولوية في التقديم والدعم"], ensure_ascii=False),
     ))
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status
