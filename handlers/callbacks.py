@@ -155,6 +155,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["admin_plan_code"] = plan_code
             context.user_data["admin_plan_field"] = field
             labels = {
+                "name": "اسم الباقة الجديد",
                 "price": "السعر بالريال",
                 "points": "عدد النقاط",
                 "apps": "كوتة التقديمات اليومية",
@@ -884,7 +885,7 @@ async def handle_admin_plan_text(
             value = numeric_fields[field](raw.replace(",", ""))
             if value < 0:
                 raise ValueError
-        elif field == "description":
+        elif field in ("description", "name"):
             if not raw or len(raw) > 500:
                 raise ValueError
             value = raw
@@ -892,11 +893,12 @@ async def handle_admin_plan_text(
             raise ValueError
     except ValueError:
         await update.message.reply_text(
-            "⚠️ قيمة غير صحيحة. أرسل رقماً غير سالب، أو وصفاً من 500 حرف كحد أقصى:"
+            "⚠️ قيمة غير صحيحة. أرسل رقماً غير سالب، أو نصاً من 500 حرف كحد أقصى:"
         )
         return True
 
     db_field = {
+        "name": "name",
         "price": "price",
         "points": "points",
         "apps": "applications_limit",

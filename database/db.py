@@ -770,7 +770,7 @@ def update_plan(plan_code: str, field: str, value) -> bool:
     """تحديث حقل آمن من حقول الباقة من لوحة المشرف."""
     allowed = {
         "price", "points", "applications_limit", "companies_limit",
-        "description",
+        "description", "name",
     }
     if field not in allowed:
         return False

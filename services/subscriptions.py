@@ -28,44 +28,50 @@ def request_plan(telegram_id: int, plan_code: str) -> Optional[int]:
 def account_text(telegram_id: int) -> str:
     subscription = ensure_account(telegram_id)
     if not subscription:
-        return "❌ تعذر إنشاء حساب الرصيد حالياً."
-    ends = subscription.get("ends_at") or "مفتوح"
-    plan_description = subscription.get("plan_description") or "الخدمات الأساسية"
-    end_label = ends[:10] if ends != "مفتوح" else ends
+        return "❌ تعذر إيجاد أو إنشاء تفاصيل الاشتراك حالياً."
+    ends = subscription.get("ends_at") or "غير محدد (دائم)"
+    plan_description = subscription.get("plan_description") or "خدمات التوظيف الأساسية"
+    end_label = ends[:10] if ends != "غير محدد (دائم)" and len(ends) >= 10 else ends
+
+    plan_name = subscription.get('plan_name', 'المجانية')
+    points = subscription.get('points_balance', 0)
+    apps = subscription.get('applications_remaining', 0)
+    companies = subscription.get('companies_remaining', 0)
+
     return (
-        "💳 *اشتراكي ورصيدي*\n"
-        "━━━━━━━━━━━━━━━━\n"
-        f"📦 *الباقة الحالية:* {subscription.get('plan_name', 'مجانية')}\n"
-        f"📝 {plan_description}\n\n"
-        "📊 *الرصيد المتاح الآن*\n"
-        f"⭐ النقاط: *{subscription.get('points_balance', 0)}*\n"
-        f"🤖 التقديمات على الوظائف: *{subscription.get('applications_remaining', 0)}*\n"
-        f"🏢 التقديمات على إيميلات HR: *{subscription.get('companies_remaining', 0)}*\n\n"
-        f"📅 *تاريخ الانتهاء:* {end_label}\n"
-        "━━━━━━━━━━━━━━━━\n"
-        "اختر «شراء باقة» لزيادة رصيدك أو عرض تفاصيل الباقات."
+        "💳 *بطاقة تفاصيل الاشتراك والرصيد*\n"
+        "✨ *Saudi Jobs Telegram Bot*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📦 *الباقة الحالية:* {plan_name}\n"
+        f"💬 *الوصف:* _{plan_description}_\n\n"
+        "📊 *تفاصيل الكوتة والرصيد المتاح:*\n"
+        f"  ⭐ *النقاط العامة:* `{points}` نقطة\n"
+        f"  🤖 *كوتة التقديم اليومي:* `{apps}` تقديم\n"
+        f"  🏢 *كوتة إيميلات HR والشركات:* `{companies}` شركة\n\n"
+        f"📅 *تاريخ نهاية الاشتراك:* `{end_label}`\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "💡 *ملاحظة:* يمكنك ترقية باقتك أو زيادة كوتة التقديمات في أي وقت بالضغط على «شراء باقة»."
     )
 
 
 def plans_text(plans: List[Dict]) -> str:
     lines = [
-        "💎 *الباقات المتاحة*",
-        "اختر أي باقة لعرض تفاصيلها ثم إرسال طلب الشراء.",
-        "━━━━━━━━━━━━━━━━",
+        "💎 *قائمة الباقات والاشتراكات المتاحة*",
+        "اختر الباقة المناسبة لاحتياجاتك للحصول على أعلى كوتة تقديم للشركات وإيميلات HR:",
+        "━━━━━━━━━━━━━━━━━━━━━━",
     ]
     for plan in plans:
-        price = "مجانية" if not plan["price"] else f"{plan['price']:.0f} ريال"
+        price = "مجانية 🎁" if not plan["price"] else f"*{plan['price']:.0f} ريال*"
         period = (
             f" / {plan['billing_period_days']} يوم"
             if plan.get("billing_period_days") else ""
         )
         lines.extend([
             f"\n📦 *{plan['name']}*",
-            f"💰 السعر: *{price}*{period}",
-            f"📝 {plan.get('description') or 'خدمات أساسية'}",
-            f"⭐ النقاط: *{plan['points']}*",
-            f"🤖 تقديمات الوظائف: *{plan['applications_limit']}*",
-            f"🏢 إيميلات HR والشركات: *{plan['companies_limit']}*",
+            f"💰 *السعر:* {price}{period}",
+            f"📝 *التفاصيل:* _{plan.get('description') or 'خدمات أساسية'}_",
+            f"⭐ *النقاط:* `{plan['points']}` | 🤖 *التقديم اليومي:* `{plan['applications_limit']}` | 🏢 *إيميلات HR:* `{plan['companies_limit']}`",
+            "──────────────────────",
         ])
     return "\n".join(lines)
 

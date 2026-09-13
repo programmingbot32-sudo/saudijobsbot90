@@ -287,6 +287,7 @@ def get_admin_plans_keyboard(plans):
 
 def get_admin_plan_keyboard(plan_code: str):
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏷️ تعديل اسم الباقة", callback_data=f"admin_edit_name_{plan_code}")],
         [InlineKeyboardButton("💰 تعديل السعر", callback_data=f"admin_edit_price_{plan_code}")],
         [InlineKeyboardButton("⭐ تعديل النقاط", callback_data=f"admin_edit_points_{plan_code}")],
         [InlineKeyboardButton("🤖 تعديل كوتة التقديم", callback_data=f"admin_edit_apps_{plan_code}")],
