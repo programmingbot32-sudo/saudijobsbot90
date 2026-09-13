@@ -4,6 +4,7 @@
 """
 
 import os
+import re
 import json
 import logging
 from typing import Optional
@@ -253,70 +254,219 @@ def ai_suggest_improvements(user: dict) -> str:
         return "💡 أكمل ملفك الشخصي وارفع سيرتك الذاتية لزيادة فرصك!"
 
 
-def ai_generate_professional_cv(user: dict, source_text: str) -> str:
-    """إنشاء سيرة ذاتية عربية منظمة، مع قالب احتياطي يعمل دون GROQ_API_KEY."""
-    profile = f"""
-الاسم: {user.get('full_name_ar') or user.get('full_name_en') or 'غير محدد'}
-البريد: {user.get('email') or 'غير محدد'}
-الجوال: {user.get('phone') or 'غير محدد'}
-المنطقة: {user.get('region') or 'السعودية'}
-المجال: {user.get('category') or 'غير محدد'}
-التخصص: {user.get('specialization') or 'غير محدد'}
-المؤهل: {user.get('education_level') or 'غير محدد'}
-الخبرة: {user.get('experience_level') or 'غير محددة'}
-نوع الدوام: {user.get('work_type') or 'غير محدد'}
-لينكدإن: {user.get('linkedin_url') or 'غير مضاف'}
+def _sanitize_source_text(text: str) -> str:
+    """تطهير وتنقية النص من مخلفات ملفات PDF والرموز وبيانات Meta غير المفهومة."""
+    if not text:
+        return ""
+
+    noise_patterns = [
+        r'Adobe\s+Identity',
+        r'Adobe\s+UCS',
+        r'Canva\s+Canva',
+        r'D:\d{14}[+\-\d\']+',
+        r'DAGGI[A-Za-z0-9,]+',
+        r'\/B\s+1\s+\*\\q',
+    ]
+    cleaned = text
+    for pat in noise_patterns:
+        cleaned = re.sub(pat, ' ', cleaned, flags=re.IGNORECASE)
+
+    lines = cleaned.splitlines()
+    filtered_lines = []
+    for line in lines:
+        line_str = line.strip()
+        if not line_str:
+            continue
+        printable_count = len(re.findall(r'[\u0600-\u06FFa-zA-Z0-9\s.,@\-:\/+=]', line_str))
+        if len(line_str) > 5 and (printable_count / len(line_str)) < 0.5:
+            continue
+        if any(term in line_str.lower() for term in ['adobe identity', 'adobe ucs', 'canva d:']):
+            continue
+        filtered_lines.append(line_str)
+
+    result = "\n".join(filtered_lines)
+    result = re.sub(r'[ \t]+', ' ', result)
+    result = re.sub(r'\n{3,}', '\n\n', result)
+    return result.strip()
+
+
+def _extract_contacts_from_text(text: str) -> dict:
+    """استخراج بيانات التواصل من النص المرفق إذا لم تكن موجودة في ملف المستخدم."""
+    extracted = {}
+    if not text:
+        return extracted
+
+    email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
+    if email_match:
+        extracted['email'] = email_match.group(0)
+
+    phone_match = re.search(r'(?:05|\+?9665)\d{8}', text)
+    if phone_match:
+        extracted['phone'] = phone_match.group(0)
+
+    linkedin_match = re.search(r'(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9%_\-]+', text, re.IGNORECASE)
+    if linkedin_match:
+        extracted['linkedin_url'] = linkedin_match.group(0)
+
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    for line in lines[:8]:
+        if re.match(r'^[A-Za-z\s]{3,30}$', line) and not any(kw in line.lower() for kw in ['adobe', 'canva', 'curriculum', 'resume', 'cv']):
+            extracted['name'] = line
+            break
+        elif re.match(r'^[\u0600-\u06FF\s]{5,30}$', line) and not any(kw in line for kw in ['سيرة', 'ذاتية', 'ملف', 'خبرات', 'تضمين']):
+            extracted['name'] = line
+            break
+
+    return extracted
+
+
+def _generate_fallback_cv(
+    name: str,
+    email: str,
+    phone: str,
+    region: str,
+    category: str,
+    specialization: str,
+    education: str,
+    experience: str,
+    work_type: str,
+    linkedin: str,
+    clean_source: str,
+) -> str:
+    """توليد سيرة ذاتية احترافية متنسقة عند عدم توفر خدمة الذكاء الاصطناعي."""
+    job_title = specialization if specialization != 'غير محدد' else (category if category != 'غير محدد' else 'متخصص مهني')
+
+    if clean_source and len(clean_source) > 10:
+        extracted_lines = [l.strip() for l in clean_source.splitlines() if l.strip() and len(l.strip()) > 5]
+        skills_experience_block = "\n".join([f"• {line}" for line in extracted_lines[:10]])
+    else:
+        skills_experience_block = (
+            "• إتقان المهارات التخصصية والمهنية ذات الصلة بالمجال.\n"
+            "• القدرة على العمل الجماعي والتواصل الفعال وتأدية المهام بدقة.\n"
+            "• الالتزام بمعايير الجودة والعمل في بيئة ديناميكية."
+        )
+
+    return f"""==================================================
+                 {name}
+         {job_title}
+==================================================
+📱 الجوال: {phone} | ✉️ البريد: {email}
+📍 المنطقة: {region} | 🔗 لينكدإن: {linkedin}
+💼 نوع الدوام: {work_type} | 🎯 سنوات الخبرة: {experience}
+
+━━━━━━ 📄 الملخص المهني ━━━━━━
+{job_title} طموح ومتمكن في مجال {category}، يمتلك خبرة قدرها ({experience}) ويتميز بالمهارات العملية والتعليمية المقترنة بالمؤهل ({education}). يسعى للانضمام إلى بيئة عمل احترافية في السوق السعودي لتحقيق أهداف المؤسسة وتطوير مساره المهني.
+
+━━━━━━ 🛠️ المهارات والكفاءات الرئيسية ━━━━━━
+• المهارات التخصصية: الكفاءة في مجال {specialization if specialization != 'غير محدد' else category}.
+• المهارات الشخصية: التواصل الفعال، حل المشكلات، إدارة الوقت، والعمل بروح الفريق.
+• الأدوات والتقنيات: استخدام البرامج والأدوات الحديثة الخاصة بالتخصص.
+
+━━━━━━ 💼 الخبرات والمهام العملية ━━━━━━
+{skills_experience_block}
+
+━━━━━━ 🎓 التعليم والمؤهلات ━━━━━━
+• المؤهل العلمي: {education}
+• التخصص: {specialization if specialization != 'غير محدد' else category}
+
+━━━━━━ 📜 الشهادات والدورات التدريبية ━━━━━━
+• دورات تطويرية وتخصصية في مجال {category} (يُضاف التفاصيل لاحقاً).
+
+━━━━━━ 🌐 اللغات والروابط ━━━━━━
+• اللغة العربية: اللغة الأم (إتقان تام).
+• اللغة الإنجليزية: مستوى جيد جداً / مهني.
+• رابط الأعمال / LinkedIn: {linkedin}
+==================================================
+💡 تنبيه: يمكنك تحديث بياناتك أو إرسال تفاصيل إضافية لتحديث السيرة الذاتية تلقائياً.
 """.strip()
+
+
+def ai_generate_professional_cv(user: dict, source_text: str) -> str:
+    """إنشاء سيرة ذاتية عربية احترافية بتنسيق عصري ومنظم."""
+    clean_source = _sanitize_source_text(source_text)
+    extracted = _extract_contacts_from_text(clean_source or source_text)
+
+    name = (
+        user.get('full_name_ar') or
+        user.get('full_name_en') or
+        extracted.get('name') or
+        'غير محدد'
+    )
+    email = user.get('email') or extracted.get('email') or 'غير محدد'
+    phone = user.get('phone') or extracted.get('phone') or 'غير محدد'
+    region = user.get('region') or 'السعودية'
+    category = user.get('category') or 'غير محدد'
+    specialization = user.get('specialization') or 'غير محدد'
+    education = user.get('education_level') or 'غير محدد'
+    experience = user.get('experience_level') or 'غير محددة'
+    work_type = user.get('work_type') or 'غير محدد'
+    linkedin = user.get('linkedin_url') or extracted.get('linkedin_url') or 'غير مضاف'
+
+    profile = f"""
+- الاسم: {name}
+- البريد الإلكتروني: {email}
+- رقم الجوال: {phone}
+- المنطقة / المدينة: {region}
+- المجال الوظيفي: {category}
+- التخصص الدقيق: {specialization}
+- المستوى التعليمي: {education}
+- سنوات الخبرة: {experience}
+- نوع الدوام المفضل: {work_type}
+- رابط لينكدإن: {linkedin}
+""".strip()
+
     client = get_groq_client()
     if client:
-        prompt = f"""أنت خبير كتابة سير ذاتية لسوق العمل السعودي.
-صمم سيرة ذاتية احترافية باللغة العربية من بيانات المرشح والمعلومات المرفقة.
-لا تخترع أسماء شركات أو شهادات أو أرقاماً غير موجودة؛ استخدم "يُضاف لاحقاً" عند النقص.
-استخدم عناوين واضحة، نقاطاً مختصرة، وكلمات مفتاحية مناسبة للـ ATS.
-أخرج النص النهائي فقط بهذا الترتيب:
-الاسم وبيانات التواصل
-الملخص المهني
-المهارات
-الخبرات العملية
-التعليم
-الشهادات والدورات
-اللغات
-الروابط
+        prompt = f"""أنت خبير واستشاري أول في بناء السير الذاتية وصياغتها لسوق العمل السعودي ومطابقة أنظمة ATS.
+المطلوب: صياغة وتصميم سيرة ذاتية احترافية وعصرية باللغة العربية بناءً على بيانات المرشح والمعلومات المرفقة.
+
+تعليمات التنسيق والصياغة الهامة:
+1. صمم الهيكل بتنسيق بصري عصري وواضح يسهل قراءته بالعين ومناسب لأنظمة الفرز الآلي ATS.
+2. استخدم فاصل الأقسام الجذاب بأسلوب نقي مثل (==================================================) و(━━━━━━ 📄 العنوان ━━━━━━).
+3. تجنب تماماً طباعة أي رموز غريبة أو مخلفات ملفات PDF أو نصوص البرمجة أو كلمات مثل Adobe / Canva / Identity.
+4. صغ ملخصاً مهنياً قوياً وموجزاً (3-4 أسطر) يعكس تخصص المرشح وشغفه وسعيه للنمو في السوق السعودي.
+5. استخرج المهارات والخبرات بدقة من المعلومات المرفقة ورتبها في نقاط مركزة ومبوبة (مهارات تقنية، مهارات شخصية، أدوات وبرامج).
+6. نسق الخبرات العملية بوضوح مع المسمى الوظيفي والجهة والمهام الأساسية.
+7. لا تخترع أرقاماً أو شهادات غير موجودة؛ إذا كانت هناك معلومة ناقصة استخدم "يُضاف لاحقاً" أو استنتجها بلباقة دون اختلاق.
 
 بيانات المرشح:
 {profile}
 
-المعلومات والملفات التي أرسلها:
-{source_text[:12000]}
+المعلومات المرفقة والنصوص المستخرجة (نقية):
+{clean_source[:12000] if clean_source else "لا توجد ملفات مرفقة إضافية."}
+
+أخرج النص النهائي للسيرة الذاتية فقط بالترتيب التنسيقي التالي:
+1. الترويسة الرئيسية (الاسم واللقب المهني) وبيانات التواصل مباشرة أسفلها.
+2. الملخص المهني (Executive Summary).
+3. المهارات والكفاءات (Skills & Core Competencies).
+4. الخبرات العملية (Work Experience).
+5. المؤهلات التعليمية (Education).
+6. الشهادات والدورات التدريبية (Certifications & Training).
+7. اللغات والروابط (Languages & Links).
 """
         try:
             response = client.chat.completions.create(
                 model=MODEL,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.35,
-                max_tokens=1800,
+                temperature=0.3,
+                max_tokens=2200,
             )
             result = response.choices[0].message.content.strip()
-            if result:
+            if result and len(result) > 100:
                 return result
         except Exception as exc:
             logger.warning("فشل إنشاء السيرة بالذكاء الاصطناعي: %s", exc)
 
-    return f"""السيرة الذاتية
-━━━━━━━━━━━━━━━━
-{profile}
-
-الملخص المهني
-مرشح متخصص في {user.get('specialization') or user.get('category') or 'مجاله المهني'}، ويسعى إلى فرصة مناسبة في السوق السعودي.
-
-المهارات والخبرات
-{source_text[:6000] if source_text.strip() else 'يُضاف لاحقاً من معلوماتك المهنية.'}
-
-التعليم والشهادات
-{user.get('education_level') or 'يُضاف لاحقاً'}
-
-ملاحظات التحسين
-• أضف إنجازات قابلة للقياس لكل خبرة.
-• أضف روابط الأعمال أو LinkedIn إن وجدت.
-• راجع التواريخ وبيانات التواصل قبل إرسال السيرة.
-"""
+    return _generate_fallback_cv(
+        name=name,
+        email=email,
+        phone=phone,
+        region=region,
+        category=category,
+        specialization=specialization,
+        education=education,
+        experience=experience,
+        work_type=work_type,
+        linkedin=linkedin,
+        clean_source=clean_source,
+    )
