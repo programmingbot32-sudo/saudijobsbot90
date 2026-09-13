@@ -422,7 +422,7 @@ def save_job(job_data: dict) -> Optional[int]:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             channel_msg_id,
-            job_data.get("title", "وظيفة غير محددة"),
+            job_data.get("title", "وظيفة جديده"),
             job_data.get("company"),
             job_data.get("region"),
             job_data.get("category"),

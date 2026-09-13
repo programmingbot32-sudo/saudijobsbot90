@@ -245,8 +245,7 @@ def get_subscription_menu_keyboard():
 
 def get_ai_cv_collect_keyboard():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎨 اختيار تصميم PDF للسيرة الذاتية", callback_data="ai_cv_select_design")],
-        [InlineKeyboardButton("✅ انتهيت — صمم سيرتي", callback_data="ai_cv_done")],
+        [InlineKeyboardButton("✅ انتهيت — اختر التصميم", callback_data="ai_cv_done")],
         [InlineKeyboardButton("❌ إلغاء", callback_data="ai_cv_cancel")],
     ])
 

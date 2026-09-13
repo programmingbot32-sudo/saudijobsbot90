@@ -509,7 +509,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("ذكر", callback_data="gender_ذكر"),
                  InlineKeyboardButton("أنثى", callback_data="gender_أنثى")],
-                [InlineKeyboardButton("أفضل عدم التحديد", callback_data="gender_غير محدد")],
             ])
         )
 
@@ -984,14 +983,20 @@ async def show_job_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, jo
     if not job:
         await query.edit_message_text("❌ الوظيفة غير موجودة.", reply_markup=get_jobs_menu_keyboard())
         return
-    text = (
-        f"💼 *{job.get('title', 'وظيفة')}*\n"
-        "━━━━━━━━━━━━━━━━\n"
-        f"🏢 الشركة: {job.get('company') or 'غير محدد'}\n"
-        f"📍 الموقع: {job.get('location') or 'غير محدد'}\n"
-        f"🎯 المجال: {job.get('category') or 'غير محدد'}\n\n"
-        f"{(job.get('description') or 'لا يوجد وصف متاح.')[:1800]}"
-    )
+    lines = [
+        f"💼 *{job.get('title') or 'وظيفة'}*",
+        "━━━━━━━━━━━━━━━━"
+    ]
+    if job.get("company"):
+        lines.append(f"🏢 الشركة: {job['company']}")
+    if job.get("location") or job.get("region"):
+        lines.append(f"📍 الموقع: {job.get('location') or job.get('region')}")
+    if job.get("category"):
+        lines.append(f"🎯 المجال: {job['category']}")
+    if job.get("description"):
+        lines.append(f"\n{job['description'][:1800]}")
+
+    text = "\n".join(lines)
     await query.edit_message_text(
         text, parse_mode=ParseMode.MARKDOWN,
         reply_markup=get_job_detail_keyboard(job_id)
@@ -1039,31 +1044,44 @@ async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ لم يُعثر على ملفك، ابدأ التسجيل أولاً")
         return
 
-    cv_status = "✅ موجود" if user.get("cv_file_id") else "❌ لم يُرفع بعد"
     notif = "🔔 مفعّل" if user.get("notifications_enabled") else "🔕 معطّل"
     auto = "🤖 مفعّل" if user.get("auto_apply_enabled") else "❌ معطّل"
     creds = get_email_credentials(telegram_id)
     email_linked = f"✅ `{creds['sender_email']}`" if creds else "❌ لم يُربط"
 
-    text = (
-        "👤 *ملفك الشخصي*\n"
-        "━━━━━━━━━━━━━━━━\n"
-        f"📛 *الاسم:* {user.get('full_name_ar', '—')}\n"
-        f"🌐 *(EN):* {user.get('full_name_en', '—')}\n"
-        f"📍 *المنطقة:* {user.get('region', '—')}\n"
-        f"🎯 *المجال:* {user.get('category', '—')}\n"
-        f"🔍 *التخصص:* {user.get('specialization', '—')}\n"
-        f"🎓 *المؤهل:* {user.get('education_level', '—')}\n"
-        f"⭐ *الخبرة:* {user.get('experience_level', '—')}\n"
-        f"🏢 *نوع الدوام:* {user.get('work_type', '—')}\n"
-        f"💰 *الراتب:* {user.get('salary_range', '—')}\n"
-        f"📄 *السيرة:* {cv_status}\n"
-        f"📱 *الجوال:* {user.get('phone', '—')}\n"
-        "━━━━━━━━━━━━━━━━\n"
-        f"📧 *إيميل التقديم:* {email_linked}\n"
-        f"🔔 *الإشعارات:* {notif}\n"
-        f"🤖 *التقديم التلقائي:* {auto}\n"
-    )
+    lines = [
+        "👤 *ملفك الشخصي*",
+        "━━━━━━━━━━━━━━━━"
+    ]
+    field_labels = [
+        ("full_name_ar", "📛 *الاسم:* {}"),
+        ("full_name_en", "🌐 *(EN):* {}"),
+        ("region", "📍 *المنطقة:* {}"),
+        ("category", "🎯 *المجال:* {}"),
+        ("specialization", "🔍 *التخصص:* {}"),
+        ("education_level", "🎓 *المؤهل:* {}"),
+        ("experience_level", "⭐ *الخبرة:* {}"),
+        ("work_type", "🏢 *نوع الدوام:* {}"),
+        ("salary_range", "💰 *الراتب:* {}"),
+        ("phone", "📱 *الجوال:* {}"),
+    ]
+
+    for key, template in field_labels:
+        val = user.get(key)
+        if val and str(val).strip() and str(val).strip() != "—":
+            lines.append(template.format(val))
+
+    if user.get("cv_file_id"):
+        lines.append("📄 *السيرة:* ✅ مرفوعة")
+
+    lines.extend([
+        "━━━━━━━━━━━━━━━━",
+        f"📧 *إيميل التقديم:* {email_linked}",
+        f"🔔 *الإشعارات:* {notif}",
+        f"🤖 *التقديم التلقائي:* {auto}"
+    ])
+
+    text = "\n".join(lines)
 
     await query.edit_message_text(
         text, parse_mode=ParseMode.MARKDOWN,
@@ -1269,10 +1287,12 @@ async def show_my_applications(update: Update, context: ContextTypes.DEFAULT_TYP
     text = "📋 *آخر تقديماتك:*\n\n"
     for app in apps:
         icon = method_icons.get(app["apply_method"], "📝")
+        company_str = f"*{app['company']}*\n" if app.get("company") else ""
+        region_str = f"📍 {app['region']} | " if app.get("region") else ""
         text += (
-            f"{icon} *{app['company'] or 'غير محدد'}*\n"
+            f"{icon} {company_str}"
             f"   💼 {app['title']}\n"
-            f"   📍 {app['region'] or '—'} | 📅 {str(app['applied_at'])[:10]}\n"
+            f"   {region_str}📅 {str(app['applied_at'])[:10]}\n"
             "─────────────\n"
         )
 

@@ -234,8 +234,12 @@ def ai_suggest_improvements(user: dict) -> str:
     if not profile_completeness:
         return "✅ ملفك الشخصي مكتمل! استمر في التقديم على الوظائف."
 
-    prompt = f"""باحث وظيفي في السعودية، تخصصه {user.get('specialization', user.get('category', 'غير محدد'))}, 
-خبرته {user.get('experience_level', 'غير محددة')}.
+    spec = user.get('specialization') or user.get('category') or ''
+    exp = user.get('experience_level') or ''
+    spec_part = f"، تخصصه {spec}" if spec else ""
+    exp_part = f"، خبرته {exp}" if exp else ""
+
+    prompt = f"""باحث وظيفي في السعودية{spec_part}{exp_part}.
 
 نواقص في ملفه: {', '.join(profile_completeness)}
 
@@ -255,18 +259,20 @@ def ai_suggest_improvements(user: dict) -> str:
 
 def ai_generate_professional_cv(user: dict, source_text: str) -> str:
     """إنشاء سيرة ذاتية عربية منظمة، مع قالب احتياطي يعمل دون GROQ_API_KEY."""
-    profile = f"""
-الاسم: {user.get('full_name_ar') or user.get('full_name_en') or 'غير محدد'}
-البريد: {user.get('email') or 'غير محدد'}
-الجوال: {user.get('phone') or 'غير محدد'}
-المنطقة: {user.get('region') or 'السعودية'}
-المجال: {user.get('category') or 'غير محدد'}
-التخصص: {user.get('specialization') or 'غير محدد'}
-المؤهل: {user.get('education_level') or 'غير محدد'}
-الخبرة: {user.get('experience_level') or 'غير محددة'}
-نوع الدوام: {user.get('work_type') or 'غير محدد'}
-لينكدإن: {user.get('linkedin_url') or 'غير مضاف'}
-""".strip()
+    profile_lines = []
+    name = user.get('full_name_ar') or user.get('full_name_en')
+    if name: profile_lines.append(f"الاسم: {name}")
+    if user.get('email'): profile_lines.append(f"البريد: {user.get('email')}")
+    if user.get('phone'): profile_lines.append(f"الجوال: {user.get('phone')}")
+    if user.get('region'): profile_lines.append(f"المنطقة: {user.get('region')}")
+    if user.get('category'): profile_lines.append(f"المجال: {user.get('category')}")
+    if user.get('specialization'): profile_lines.append(f"التخصص: {user.get('specialization')}")
+    if user.get('education_level'): profile_lines.append(f"المؤهل: {user.get('education_level')}")
+    if user.get('experience_level'): profile_lines.append(f"الخبرة: {user.get('experience_level')}")
+    if user.get('work_type'): profile_lines.append(f"نوع الدوام: {user.get('work_type')}")
+    if user.get('linkedin_url'): profile_lines.append(f"لينكدإن: {user.get('linkedin_url')}")
+
+    profile = "\n".join(profile_lines)
     client = get_groq_client()
     if client:
         prompt = f"""أنت خبير كتابة سير ذاتية لسوق العمل السعودي.

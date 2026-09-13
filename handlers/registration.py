@@ -388,24 +388,32 @@ async def show_profile_summary(update, context):
     """عرض ملخص الملف الشخصي قبل الحفظ"""
     profile = context.user_data.get("temp_profile", {})
 
-    cv_status = "✅ تم الرفع" if profile.get("cv_file_id") else "❌ لم يُرفع"
+    lines = ["🎉 *ملفك الشخصي جاهز!* تحقق من البيانات:\n"]
+    field_labels = [
+        ("full_name_ar", "👤 *الاسم:* {}"),
+        ("full_name_en", "🌐 *الاسم (EN):* {}"),
+        ("region", "📍 *المنطقة:* {}"),
+        ("category", "🎯 *المجال:* {}"),
+        ("specialization", "🔍 *التخصص:* {}"),
+        ("education_level", "🎓 *المؤهل:* {}"),
+        ("experience_level", "⭐ *الخبرة:* {}"),
+        ("work_type", "🏢 *نوع الدوام:* {}"),
+        ("salary_range", "💰 *الراتب:* {}"),
+        ("email", "📧 *الإيميل:* {}"),
+        ("phone", "📱 *الجوال:* {}"),
+    ]
 
-    summary = (
-        "🎉 *ملفك الشخصي جاهز!* تحقق من البيانات:\n\n"
-        f"👤 *الاسم:* {profile.get('full_name_ar', 'غير محدد')}\n"
-        f"🌐 *الاسم (EN):* {profile.get('full_name_en', 'غير محدد')}\n"
-        f"📍 *المنطقة:* {profile.get('region', 'غير محدد')}\n"
-        f"🎯 *المجال:* {profile.get('category', 'غير محدد')}\n"
-        f"🔍 *التخصص:* {profile.get('specialization', 'غير محدد')}\n"
-        f"🎓 *المؤهل:* {profile.get('education_level', 'غير محدد')}\n"
-        f"⭐ *الخبرة:* {profile.get('experience_level', 'غير محدد')}\n"
-        f"🏢 *نوع الدوام:* {profile.get('work_type', 'غير محدد')}\n"
-        f"💰 *الراتب:* {profile.get('salary_range', 'غير محدد')}\n"
-        f"📧 *الإيميل:* {profile.get('email', 'لم يُضف')}\n"
-        f"📱 *الجوال:* {profile.get('phone', 'لم يُضف')}\n"
-        f"📄 *السيرة الذاتية:* {cv_status}\n"
-        f"🔗 *LinkedIn:* {'✅' if profile.get('linkedin_url') else '❌'}\n"
-    )
+    for key, template in field_labels:
+        val = profile.get(key)
+        if val and str(val).strip():
+            lines.append(template.format(val))
+
+    if profile.get("cv_file_id"):
+        lines.append("📄 *السيرة الذاتية:* ✅ تم الرفع")
+    if profile.get("linkedin_url"):
+        lines.append(f"🔗 *LinkedIn:* {profile['linkedin_url']}")
+
+    summary = "\n".join(lines) + "\n"
 
     msg = update.callback_query if update.callback_query else update.message
     if update.callback_query:

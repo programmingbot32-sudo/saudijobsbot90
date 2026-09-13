@@ -34,14 +34,15 @@ async def start_ai_cv_builder(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data["state"] = States.AI_CV_COLLECT
     context.user_data["ai_cv_items"] = []
     context.user_data["cv_design_id"] = 1
+    context.user_data["cv_design_selected"] = False
     message = (
         "🤖 *إنشاء السيرة الذاتية الاحترافية PDF*\n\n"
         "📋 *طريقة العمل:*\n"
         "1️⃣ أرسل سيرتك الذاتية القديمة إن وجدت (PDF أو Word).\n"
         "2️⃣ أو اكتب بياناتك وخبراتك ومؤهلاتك في رسائل نصية.\n"
-        "3️⃣ اختر تصميم PDF المناسب لك من بين 3 تصاميم احترافية.\n\n"
+        "3️⃣ اضغط *انتهيت* لاختيار تصميم PDF المناسب وإنشاء السيرة.\n\n"
         "💡 _ملاحظة: البوت يعتمد التنسيق المهني الأكاديمي والعملي، ولا يستلزم رفع صورة شخصية._\n\n"
-        "بعد إرسال معلوماتك اضغط *اختيار تصميم PDF* أو *انتهيت*."
+        "أرسل معلوماتك وسيرتك هنا، وعند الانتهاء اضغط «انتهيت — اختر التصميم» 👇"
     )
     if update.callback_query:
         await update.callback_query.answer()
@@ -176,10 +177,16 @@ async def show_cv_design_options(update: Update, context: ContextTypes.DEFAULT_T
         "   - شريط علوي تنفيذي بالرمادي الداكن والعناوين الذهبية."
     )
     if update.callback_query:
-        await update.callback_query.edit_message_text(
-            msg, parse_mode=ParseMode.MARKDOWN,
-            reply_markup=get_cv_design_selection_keyboard(selected_design)
-        )
+        try:
+            await update.callback_query.edit_message_text(
+                msg, parse_mode=ParseMode.MARKDOWN,
+                reply_markup=get_cv_design_selection_keyboard(selected_design)
+            )
+        except Exception:
+            await target.reply_text(
+                msg, parse_mode=ParseMode.MARKDOWN,
+                reply_markup=get_cv_design_selection_keyboard(selected_design)
+            )
     else:
         await target.reply_text(
             msg, parse_mode=ParseMode.MARKDOWN,
@@ -206,6 +213,13 @@ async def finish_ai_cv(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_ai_cv_collect_keyboard(),
         )
         return
+
+    # الخطوة الأخيرة: عرض خيارات التصميم قبل التوليد إن لم تكن عُرِضت
+    if not context.user_data.get("cv_design_selected"):
+        context.user_data["cv_design_selected"] = True
+        await show_cv_design_options(update, context)
+        return
+
     design_id = context.user_data.get("cv_design_id", 1)
     context.user_data["state"] = States.MAIN_MENU
     await target.reply_text("⏳ جاري ترتيب معلوماتك وتصميم السيرة الذاتية PDF احترافياً...")
