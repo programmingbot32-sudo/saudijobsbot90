@@ -131,6 +131,16 @@ def generate_pdf_cv(user: Dict[str, Any], cv_text: str = "", design_id: int = 1,
     education = user.get("education_level") if is_valid_val(user.get("education_level")) else ""
     linkedin = user.get("linkedin_url") if is_valid_val(user.get("linkedin_url")) else ""
 
+    if lang == "en":
+        from utils.ai_helper import _transliterate_arabic_to_latin
+        name = _transliterate_arabic_to_latin(name)
+        if region:
+            region = _transliterate_arabic_to_latin(region)
+        if specialization:
+            specialization = _transliterate_arabic_to_latin(specialization)
+        if education:
+            education = _transliterate_arabic_to_latin(education)
+
     summary = parsed.get("الملخص المهني") or parsed.get("الملخص") or ""
     skills = parsed.get("المهارات") or ""
     exp_details = parsed.get("الخبرات العملية") or parsed.get("الخبرات") or ""
