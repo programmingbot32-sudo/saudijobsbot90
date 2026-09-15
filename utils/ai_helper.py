@@ -254,46 +254,53 @@ def ai_suggest_improvements(user: dict) -> str:
 
 
 def ai_generate_professional_cv(user: dict, source_text: str) -> str:
-    """إنشاء سيرة ذاتية عربية منظمة، مع قالب احتياطي يعمل دون GROQ_API_KEY."""
-    profile = f"""
-الاسم: {user.get('full_name_ar') or user.get('full_name_en') or 'غير محدد'}
-البريد: {user.get('email') or 'غير محدد'}
-الجوال: {user.get('phone') or 'غير محدد'}
-المنطقة: {user.get('region') or 'السعودية'}
-المجال: {user.get('category') or 'غير محدد'}
-التخصص: {user.get('specialization') or 'غير محدد'}
-المؤهل: {user.get('education_level') or 'غير محدد'}
-الخبرة: {user.get('experience_level') or 'غير محددة'}
-نوع الدوام: {user.get('work_type') or 'غير محدد'}
-لينكدإن: {user.get('linkedin_url') or 'غير مضاف'}
-""".strip()
+    """إنشاء وتطوير سيرة ذاتية عربية متكاملة واحترافية."""
+    lines = []
+    name = user.get('full_name_ar') or user.get('full_name_en') or ''
+    email = user.get('email') or ''
+    phone = user.get('phone') or ''
+    region = user.get('region') if user.get('region') not in ('أي منطقة', 'غير محدد') else ''
+
+    if name:
+        lines.append(f"الاسم: {name}")
+    if phone:
+        lines.append(f"الجوال: {phone}")
+    if email:
+        lines.append(f"البريد الإلكتروني: {email}")
+    if region:
+        lines.append(f"المنطقة: {region}")
+
+    profile = "\n".join(lines)
+
     client = get_groq_client()
     if client:
-        prompt = f"""أنت خبير كتابة سير ذاتية لسوق العمل السعودي.
-صمم سيرة ذاتية احترافية باللغة العربية من بيانات المرشح والمعلومات المرفقة.
-لا تخترع أسماء شركات أو شهادات أو أرقاماً غير موجودة؛ استخدم "يُضاف لاحقاً" عند النقص.
-استخدم عناوين واضحة، نقاطاً مختصرة، وكلمات مفتاحية مناسبة للـ ATS.
-أخرج النص النهائي فقط بهذا الترتيب:
+        prompt = f"""أنت خبير ومستشار كتابة سير ذاتية احترافية ومحترفة جداً لسوق العمل السعودي.
+مهمتك: صياغة سيرة ذاتية غنية ومصاغة بأسلوب مهني رفيع وجذاب يعزز فرص قبول المتقدم.
+
+التعليمات الصارمة:
+1. صغ ملخصاً مهنياً (الملخص المهني) جذاباً من 3-4 أسطر يعكس خبرات ومهارات المتقدم الشغوفة بناءً على مدخلاته.
+2. أضف ونسّق قسم المهارات والقدرات (المهارات) بنقاط واضحة، مع تحسين وصياغة المهارات المدخلة وإضافة المهارات المهنية المرتبطة بها بشكل ذكي.
+3. إذا كانت الخبرات أو التعليم مقتضبة، صغ الخبرات العملية والتعليم بأسلوب منسق وواضح ومحترف.
+4. يمنع منعاً باتاً كتابة عبارات عشوائية أو مبتذلة مثل (غير محدد، غير معروف، لا يوجد، غير مضاف، يُضاف لاحقاً).
+5. أخرج أقسام السيرة بعناوين رئيسية صريحة بالترتيب التالي:
 الاسم وبيانات التواصل
 الملخص المهني
-المهارات
 الخبرات العملية
+المهارات
 التعليم
-الشهادات والدورات
 اللغات
-الروابط
 
-بيانات المرشح:
+البيانات الأساسية للمرشح:
 {profile}
 
-المعلومات والملفات التي أرسلها:
+البيانات والمدخلات التفصيلية:
 {source_text[:12000]}
 """
         try:
             response = client.chat.completions.create(
                 model=MODEL,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.35,
+                temperature=0.4,
                 max_tokens=1800,
             )
             result = response.choices[0].message.content.strip()
@@ -302,21 +309,41 @@ def ai_generate_professional_cv(user: dict, source_text: str) -> str:
         except Exception as exc:
             logger.warning("فشل إنشاء السيرة بالذكاء الاصطناعي: %s", exc)
 
-    return f"""السيرة الذاتية
-━━━━━━━━━━━━━━━━
-{profile}
+    st_dict = {}
+    for line in source_text.splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            st_dict[k.strip()] = v.strip()
 
-الملخص المهني
-مرشح متخصص في {user.get('specialization') or user.get('category') or 'مجاله المهني'}، ويسعى إلى فرصة مناسبة في السوق السعودي.
+    skills_raw = st_dict.get("المهارات", "")
+    edu_raw = st_dict.get("التعليم", "")
+    exp_raw = st_dict.get("الخبرات", "")
+    lang_raw = st_dict.get("اللغات", "")
 
-المهارات والخبرات
-{source_text[:6000] if source_text.strip() else 'يُضاف لاحقاً من معلوماتك المهنية.'}
+    summary = ""
+    if skills_raw or exp_raw:
+        skills_summary = skills_raw or exp_raw
+        summary = f"متخصص متمكن وشغوف في المجال العملي، يمتلك خبرة ومهارات متقدمة في {skills_summary}. يسعى لتقديم إضافة نوعية وتحقيق التميز المهني في بيئة عمل طموحة بالمملكة العربية السعودية."
 
-التعليم والشهادات
-{user.get('education_level') or 'يُضاف لاحقاً'}
+    res_parts = [
+        "بيانات التواصل",
+        profile,
+        "",
+        "الملخص المهني",
+        summary if summary else "متخصص يسعى لاستغلال خبراته ومهاراته المهنية لتحقيق نتائج تمتاز بالكفاءة والجودة العالية.",
+        ""
+    ]
 
-ملاحظات التحسين
-• أضف إنجازات قابلة للقياس لكل خبرة.
-• أضف روابط الأعمال أو LinkedIn إن وجدت.
-• راجع التواريخ وبيانات التواصل قبل إرسال السيرة.
-"""
+    if exp_raw:
+        res_parts.extend(["الخبرات العملية", exp_raw, ""])
+
+    if skills_raw:
+        res_parts.extend(["المهارات", skills_raw, ""])
+
+    if edu_raw:
+        res_parts.extend(["التعليم", edu_raw, ""])
+
+    if lang_raw:
+        res_parts.extend(["اللغات", lang_raw, ""])
+
+    return "\n".join(res_parts)

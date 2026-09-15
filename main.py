@@ -50,7 +50,11 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if await handle_admin_plan_text(update, context):
             return
 
-    if state == States.AI_CV_COLLECT:
+    if state in (
+        States.AI_CV_COLLECT, States.AI_CV_NAME, States.AI_CV_PHONE,
+        States.AI_CV_EMAIL, States.AI_CV_EDUCATION, States.AI_CV_SKILLS,
+        States.AI_CV_EXPERIENCE, States.AI_CV_LANGUAGES, States.AI_CV_SUMMARY
+    ):
         from handlers.ai_features import collect_ai_cv_text
         if await collect_ai_cv_text(update, context):
             return

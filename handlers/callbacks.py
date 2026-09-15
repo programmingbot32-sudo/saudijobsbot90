@@ -55,6 +55,8 @@ from services.catalog import category_name
 from utils.security import escape_md
 from handlers.ai_features import (
     start_ai_cv_builder, finish_ai_cv, cancel_ai_cv,
+    show_cv_design_options, set_cv_design,
+    prompt_next_cv_step, show_ai_cv_summary,
     start_ai_job_search, send_ai_job_results,
 )
 
@@ -293,6 +295,39 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ─── القائمة الرئيسية ───
     elif data == "ai_cv_builder":
         await start_ai_cv_builder(update, context)
+
+    elif data == "ai_cv_skip_email":
+        context.user_data.setdefault("cv_data", {})["email"] = ""
+        await prompt_next_cv_step(update, context, States.AI_CV_EDUCATION)
+
+    elif data == "ai_cv_skip_education":
+        context.user_data.setdefault("cv_data", {})["education"] = ""
+        await prompt_next_cv_step(update, context, States.AI_CV_SKILLS)
+
+    elif data == "ai_cv_skip_skills":
+        context.user_data.setdefault("cv_data", {})["skills"] = ""
+        await prompt_next_cv_step(update, context, States.AI_CV_EXPERIENCE)
+
+    elif data == "ai_cv_skip_experience":
+        context.user_data.setdefault("cv_data", {})["experience"] = ""
+        await prompt_next_cv_step(update, context, States.AI_CV_LANGUAGES)
+
+    elif data == "ai_cv_skip_languages":
+        context.user_data.setdefault("cv_data", {})["languages"] = ""
+        await show_ai_cv_summary(update, context)
+
+    elif data == "ai_cv_confirm_summary":
+        await show_cv_design_options(update, context)
+
+    elif data == "ai_cv_edit_summary":
+        await start_ai_cv_builder(update, context)
+
+    elif data in ("ai_cv_select_design", "ai_cv_continue_collect"):
+        await show_cv_design_options(update, context)
+
+    elif data.startswith("set_cv_design_"):
+        design_id = int(data.split("_")[-1])
+        await set_cv_design(update, context, design_id)
 
     elif data == "ai_cv_done":
         await finish_ai_cv(update, context)
