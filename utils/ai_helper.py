@@ -254,39 +254,37 @@ def ai_suggest_improvements(user: dict) -> str:
 
 
 def ai_generate_professional_cv(user: dict, source_text: str) -> str:
-    """إنشاء سيرة ذاتية عربية منظمة، مع قالب احتياطي يعمل دون GROQ_API_KEY."""
-    profile = f"""
-الاسم: {user.get('full_name_ar') or user.get('full_name_en') or 'غير محدد'}
-البريد: {user.get('email') or 'غير محدد'}
-الجوال: {user.get('phone') or 'غير محدد'}
-المنطقة: {user.get('region') or 'السعودية'}
-المجال: {user.get('category') or 'غير محدد'}
-التخصص: {user.get('specialization') or 'غير محدد'}
-المؤهل: {user.get('education_level') or 'غير محدد'}
-الخبرة: {user.get('experience_level') or 'غير محددة'}
-نوع الدوام: {user.get('work_type') or 'غير محدد'}
-لينكدإن: {user.get('linkedin_url') or 'غير مضاف'}
-""".strip()
+    """إنشاء سيرة ذاتية عربية احترافية بحزم وبدون أي عبارات عشوائية أو وهمية مثل غير محدد."""
+    lines = []
+    name = user.get('full_name_ar') or user.get('full_name_en') or ''
+    email = user.get('email') or ''
+    phone = user.get('phone') or ''
+    region = user.get('region') if user.get('region') not in ('أي منطقة', 'غير محدد') else ''
+
+    if name:
+        lines.append(f"الاسم: {name}")
+    if phone:
+        lines.append(f"الجوال: {phone}")
+    if email:
+        lines.append(f"البريد الإلكتروني: {email}")
+    if region:
+        lines.append(f"المنطقة: {region}")
+
+    profile = "\n".join(lines)
+
     client = get_groq_client()
     if client:
-        prompt = f"""أنت خبير كتابة سير ذاتية لسوق العمل السعودي.
-صمم سيرة ذاتية احترافية باللغة العربية من بيانات المرشح والمعلومات المرفقة.
-لا تخترع أسماء شركات أو شهادات أو أرقاماً غير موجودة؛ استخدم "يُضاف لاحقاً" عند النقص.
-استخدم عناوين واضحة، نقاطاً مختصرة، وكلمات مفتاحية مناسبة للـ ATS.
-أخرج النص النهائي فقط بهذا الترتيب:
-الاسم وبيانات التواصل
-الملخص المهني
-المهارات
-الخبرات العملية
-التعليم
-الشهادات والدورات
-اللغات
-الروابط
+        prompt = f"""أنت خبير صياغة سير ذاتية احترافية ومحترفة جداً لسوق العمل السعودي.
+تعليمات حازمة وصارمة جداً:
+1. صمم سيرة ذاتية احترافية متكاملة ومصاغة بأسلوب مهني رفيع.
+2. يمنع منعاً باتاً اختراع أي بيانات وهمية أو كتابة عبارات عشوائية ومبتذلة مثل (غير محدد، غير معروف، لا يوجد، غير مضاف، يُضاف لاحقاً).
+3. القسم الذي لا يتوفر له بيانات ادمجه أو احذفه مباشرة دون ترك خانات فارغة.
+4. استخدم نقاطاً مختصرة وعناوين رئيسية واضحة ومناسبة لأنظمة الفرز الآلي ATS.
 
-بيانات المرشح:
+البيانات المتوفرة للمرشح:
 {profile}
 
-المعلومات والملفات التي أرسلها:
+البيانات الإضافية المدخلة:
 {source_text[:12000]}
 """
         try:
@@ -302,21 +300,7 @@ def ai_generate_professional_cv(user: dict, source_text: str) -> str:
         except Exception as exc:
             logger.warning("فشل إنشاء السيرة بالذكاء الاصطناعي: %s", exc)
 
-    return f"""السيرة الذاتية
-━━━━━━━━━━━━━━━━
-{profile}
-
-الملخص المهني
-مرشح متخصص في {user.get('specialization') or user.get('category') or 'مجاله المهني'}، ويسعى إلى فرصة مناسبة في السوق السعودي.
-
-المهارات والخبرات
-{source_text[:6000] if source_text.strip() else 'يُضاف لاحقاً من معلوماتك المهنية.'}
-
-التعليم والشهادات
-{user.get('education_level') or 'يُضاف لاحقاً'}
-
-ملاحظات التحسين
-• أضف إنجازات قابلة للقياس لكل خبرة.
-• أضف روابط الأعمال أو LinkedIn إن وجدت.
-• راجع التواريخ وبيانات التواصل قبل إرسال السيرة.
-"""
+    res_parts = ["السيرة الذاتية", "━━━━━━━━━━━━━━━━", profile, ""]
+    if source_text.strip():
+        res_parts.append(source_text.strip())
+    return "\n".join(res_parts)
