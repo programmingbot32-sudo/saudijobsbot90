@@ -254,6 +254,33 @@ def ai_suggest_improvements(user: dict) -> str:
         return "💡 أكمل ملفك الشخصي وارفع سيرتك الذاتية لزيادة فرصك!"
 
 
+def _parse_source_text(source_text: str) -> dict:
+    """استخراج وقراءة كافة الحقول متعددة الأسطر من نص المصدر دون فقدان أي سطر."""
+    st_dict = {}
+    current_key = None
+    for line in source_text.splitlines():
+        clean = line.strip()
+        if not clean:
+            continue
+        if ":" in clean:
+            k, v = clean.split(":", 1)
+            k_strip = k.strip()
+            v_strip = v.strip()
+            current_key = k_strip
+            if current_key in st_dict:
+                if v_strip:
+                    st_dict[current_key] += "\n" + v_strip
+            else:
+                st_dict[current_key] = v_strip
+        else:
+            if current_key:
+                if st_dict[current_key]:
+                    st_dict[current_key] += "\n" + clean
+                else:
+                    st_dict[current_key] = clean
+    return st_dict
+
+
 def ai_generate_professional_cv(user: dict, source_text: str) -> str:
     """إنشاء وتطوير سيرة ذاتية عربية متكاملة واحترافية."""
     lines = []
@@ -310,11 +337,7 @@ def ai_generate_professional_cv(user: dict, source_text: str) -> str:
         except Exception as exc:
             logger.warning("فشل إنشاء السيرة بالذكاء الاصطناعي: %s", exc)
 
-    st_dict = {}
-    for line in source_text.splitlines():
-        if ":" in line:
-            k, v = line.split(":", 1)
-            st_dict[k.strip()] = v.strip()
+    st_dict = _parse_source_text(source_text)
 
     skills_raw = st_dict.get("المهارات", "")
     edu_raw = st_dict.get("التعليم", "")
@@ -374,18 +397,44 @@ def _translate_text_dict(text: str) -> str:
         ("بكالوريوس هندسة حاسب", "Bachelor of Computer Engineering"),
         ("بكالوريوس تقنية معلومات", "Bachelor of Information Technology"),
         ("بكالوريوس إدارة أعمال", "Bachelor of Business Administration"),
+        ("بكالوريوس تجارة", "Bachelor's Degree in Commerce"),
+        ("مجستير بالمحاسبة", "Master's Degree in Accounting"),
+        ("ماجستير بالمحاسبة", "Master's Degree in Accounting"),
+        ("مجستير محاسبة", "Master's Degree in Accounting"),
+        ("ماجستير محاسبة", "Master's Degree in Accounting"),
         ("بكالوريوس", "Bachelor's Degree in"),
+        ("مجستير", "Master's Degree in"),
         ("ماجستير", "Master's Degree in"),
         ("دكتوراه", "Ph.D. in"),
         ("دبلوم عالي", "Higher Diploma in"),
         ("دبلوم", "Diploma in"),
         ("ثانوية عامة", "High School Diploma"),
+        ("تجارة", "Commerce"),
+        ("محاسبة", "Accounting"),
+        ("إدارة أعمال", "Business Administration"),
+        ("إدارة", "Management"),
+        ("تسويق", "Marketing"),
+        ("مالية", "Finance"),
+        ("هندسة", "Engineering"),
+        ("علوم حاسب", "Computer Science"),
+        ("تقنية معلومات", "Information Technology"),
+        ("حقوق", "Law"),
+        ("قانون", "Law"),
         ("جامعة الملك سعود", "King Saud University"),
         ("جامعة الملك عبدالعزيز", "King Abdulaziz University"),
         ("جامعة الملك فهد", "King Fahd University"),
         ("جامعة", "University"),
         ("كلية", "College"),
         ("المؤهل الدراسي", "Higher Education Degree"),
+        ("شركة العلمين", "Al-Alamein Company"),
+        ("العلمين", "Al-Alamein"),
+        ("شركة برمجة", "Software Development Company"),
+        ("شركة", "Company"),
+        ("مؤسسة", "Establishment"),
+        ("برمجة بوتات", "Telegram & AI Bots Development"),
+        ("تصميم مواقع", "Web Design & Development"),
+        ("تصميم", "Design"),
+        ("مواقع", "Websites"),
         ("خبير بوتات وبرمجة الأتمتة", "Expert in Telegram Bots & Process Automation"),
         ("خبير بوتات تليجرام", "Expert in Telegram Bots Development"),
         ("برمجة أتمتة العمليات", "Process Automation & Software Engineering"),
@@ -403,14 +452,17 @@ def _translate_text_dict(text: str) -> str:
         ("حل المشكلات", "Problem Solving"),
         ("التواصل", "Communication Skills"),
         ("أتمتة", "Automation"),
-        ("برمجة", "Programming"),
+        ("برمجة", "Software / Programming"),
         ("بايثون", "Python"),
         ("اللغة العربية", "Arabic (Native)"),
+        ("اللغة الانجليزية جيد", "English (Good / Conversational)"),
+        ("اللغة الإنجليزية جيد", "English (Good / Conversational)"),
+        ("اللغة الانجليزية ممتاز", "English (Fluent / Advanced)"),
+        ("اللغة الإنجليزية ممتاز", "English (Fluent / Advanced)"),
         ("اللغة الإنجليزية", "English"),
         ("اللغة الانجليزية", "English"),
         ("بالإنجليزي", "English"),
         ("بالانجليزي", "English"),
-        ("بالإنجليزي", "English"),
         ("بالانجليزية", "English"),
         ("بالإنجليزية", "English"),
         ("إتقان ممتاز بالإنجليزية", "Fluent English"),
@@ -420,6 +472,13 @@ def _translate_text_dict(text: str) -> str:
         ("متوسط", "Intermediate"),
         ("ممتاز", "Advanced / Fluent"),
         ("جيد", "Conversational / Good"),
+        ("محمد", "Mohamed"),
+        ("احمد", "Ahmed"),
+        ("أحمد", "Ahmed"),
+        ("علي", "Ali"),
+        ("عبدالله", "Abdullah"),
+        ("عمر", "Omar"),
+        ("خالد", "Khaled"),
     ]
 
     res = text
@@ -428,10 +487,37 @@ def _translate_text_dict(text: str) -> str:
     return res
 
 
+def _transliterate_arabic_to_latin(text: str) -> str:
+    """تحويل أي حروف عربية متبقية إلى الحروف اللاتينية لضمان خلو السيرة الإنجليزية من العربية."""
+    if not text:
+        return ""
+    text = _translate_text_dict(text)
+    if not re.search(r"[\u0600-\u06FF]", text):
+        return text
+
+    ar_to_lat = {
+        'أ': 'A', 'إ': 'I', 'آ': 'Aa', 'ا': 'A', 'ب': 'B', 'ت': 'T', 'ث': 'Th',
+        'ج': 'J', 'ح': 'H', 'خ': 'Kh', 'د': 'D', 'ذ': 'Dh', 'ر': 'R', 'ز': 'Z',
+        'س': 'S', 'ش': 'Sh', 'ص': 'S', 'ض': 'Dh', 'ط': 'T', 'ظ': 'Z', 'ع': 'A',
+        'غ': 'Gh', 'ف': 'F', 'ق': 'Q', 'ك': 'K', 'ل': 'L', 'م': 'M', 'ن': 'N',
+        'ه': 'H', 'و': 'W', 'ي': 'Y', 'ى': 'A', 'ئ': 'Y', 'ء': '', 'ؤ': 'W',
+        'ة': 'ah', 'ـ': '', 'َ': 'a', 'ُ': 'u', 'ِ': 'i', 'ً': 'an', 'ٌ': 'un', 'ٍ': 'in',
+        'ّ': '', 'ْ': ''
+    }
+
+    res = []
+    for char in text:
+        res.append(ar_to_lat.get(char, char))
+
+    out = "".join(res)
+    return " ".join(w.capitalize() if w.islower() else w for w in out.split())
+
+
 def ai_generate_english_cv(user: dict, source_text: str) -> str:
     """ترجمة وصياغة سيرة ذاتية باللغة الإنجليزية باحترافية."""
     lines = []
     name_en = user.get('full_name_en') or user.get('full_name_ar') or ''
+    name_en = _transliterate_arabic_to_latin(name_en)
     email = user.get('email') or ''
     phone = user.get('phone') or ''
     region = user.get('region') if user.get('region') not in ('أي منطقة', 'غير محدد') else ''
@@ -443,7 +529,7 @@ def ai_generate_english_cv(user: dict, source_text: str) -> str:
     if email:
         lines.append(f"Email: {email}")
     if region:
-        lines.append(f"Location: {_translate_text_dict(region)}")
+        lines.append(f"Location: {_transliterate_arabic_to_latin(region)}")
 
     profile = "\n".join(lines)
 
@@ -481,27 +567,23 @@ Detailed Inputs:
             )
             result = response.choices[0].message.content.strip()
             if result:
-                return result
+                return _transliterate_arabic_to_latin(result)
         except Exception as exc:
             logger.warning("English AI CV generation failed: %s", exc)
 
-    st_dict = {}
-    for line in source_text.splitlines():
-        if ":" in line:
-            k, v = line.split(":", 1)
-            st_dict[k.strip()] = v.strip()
+    st_dict = _parse_source_text(source_text)
 
-    skills_raw = _translate_text_dict(st_dict.get("المهارات", ""))
-    edu_raw = _translate_text_dict(st_dict.get("التعليم", ""))
-    exp_raw = _translate_text_dict(st_dict.get("الخبرات", ""))
-    lang_raw = _translate_text_dict(st_dict.get("اللغات", ""))
+    skills_raw = _transliterate_arabic_to_latin(st_dict.get("المهارات", ""))
+    edu_raw = _transliterate_arabic_to_latin(st_dict.get("التعليم", ""))
+    exp_raw = _transliterate_arabic_to_latin(st_dict.get("الخبرات", ""))
+    lang_raw = _transliterate_arabic_to_latin(st_dict.get("اللغات", ""))
 
     skills_summary = skills_raw or exp_raw or "software automation and technology"
     summary = f"Accomplished professional with strong hands-on experience and expertise in {skills_summary}. Passionate about driving technical excellence and delivering high-value solutions in Saudi Arabia."
 
     res_parts = [
         "Contact Information",
-        _translate_text_dict(profile),
+        profile,
         "",
         "Professional Summary",
         summary,
