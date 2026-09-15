@@ -243,9 +243,37 @@ def get_subscription_menu_keyboard():
     ])
 
 
+def get_ai_cv_skip_keyboard(skip_callback: str):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⏭️ تخطي", callback_data=skip_callback)],
+        [InlineKeyboardButton("❌ إلغاء", callback_data="ai_cv_cancel")],
+    ])
+
+
+def get_ai_cv_summary_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ إكمال", callback_data="ai_cv_confirm_summary")],
+        [InlineKeyboardButton("✏️ تعديل", callback_data="ai_cv_edit_summary")],
+        [InlineKeyboardButton("❌ إلغاء", callback_data="ai_cv_cancel")],
+    ])
+
+
 def get_ai_cv_collect_keyboard():
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎨 اختيار تصميم PDF للسيرة الذاتية", callback_data="ai_cv_select_design")],
         [InlineKeyboardButton("✅ انتهيت — صمم سيرتي", callback_data="ai_cv_done")],
+        [InlineKeyboardButton("❌ إلغاء", callback_data="ai_cv_cancel")],
+    ])
+
+
+def get_cv_design_selection_keyboard(selected_design: int = 1):
+    d1 = "✨ 1. كلاسيكي عصري (Modern Classic)"
+    d2 = "🎨 2. إبداعي بعمودين (Creative Two-Column)"
+    d3 = "👔 3. تنفيذي أنيق (Executive Elegant)"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(d1, callback_data="set_cv_design_1")],
+        [InlineKeyboardButton(d2, callback_data="set_cv_design_2")],
+        [InlineKeyboardButton(d3, callback_data="set_cv_design_3")],
         [InlineKeyboardButton("❌ إلغاء", callback_data="ai_cv_cancel")],
     ])
 
