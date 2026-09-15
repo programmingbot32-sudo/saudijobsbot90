@@ -3,3 +3,6 @@ groq==1.4.0
 flask
 cryptography
 telegram
+arabic-reshaper
+python-bidi
+reportlab
